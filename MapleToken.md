@@ -3,63 +3,50 @@
 ## Introduction
 
 - **Protocol Name:** MapleToken
-
 - **Category:** DeFi
 - **Smart Contract:** MapleToken.sol
 
 ## Function Analysis
 
-### Function Name: `DOMAIN_SEPARATOR`
+### Function Name: `permit`
 
 - **Block Explorer Link:** https://etherscan.io/token/0x33349b282065b0284d756f0577fb39c158f935e6#code
 ### Function Code
 
 ```solidity
-DOMAIN_SEPARATOR = keccak256(
-    abi.encode(
-        keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'),
-        keccak256(bytes(name)),
-        keccak256(bytes('1')),
-        chainId,
-        address(this)
-    )
-);
+  function permit(address owner, address spender, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external {
+      require(deadline >= block.timestamp, 'MapleToken:EXPIRED');
+      bytes32 digest = keccak256(
+          abi.encodePacked(
+              '\x19\x01',
+              DOMAIN_SEPARATOR,
+              keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, amount, nonces[owner]++, deadline))
+          )
+      );
+      address recoveredAddress = ecrecover(digest, v, r, s);
+      require(recoveredAddress == owner, 'MapleToken:INVALID_SIGNATURE');
+      _approve(owner, spender, amount);
+  }
 ```
-#### Used Call Method: `abi.encode`
+### Used Encoding/Decoding or Call Method: 
+ `abi.encode`, `abi.encodePacked`, `keccak256`, `ecrecover`
+ 
 
+### Explanation
 
-## Explanation
+**Purpose:**
+The purpose of the `permit` function is to enable meta-transaction approvals for token transfers. It allows an owner to sign a permit allowing a spender to transfer a specified amount of tokens on their behalf, without requiring an on-chain transaction for approval.
 
-### Purpose
+**Detailed Usage:**
 
-The `DOMAIN_SEPARATOR` variable is crucial for creating a unique identifier within the EIP-712 standard. It ensures that messages signed off-chain can be securely verified on-chain within a specific domain context.
+- **Encoding and Hashing:** The function uses `abi.encodePacked` to pack parameters into a tightly packed byte array, ensuring consistency in encoding. It then uses `keccak256` to hash the encoded data to generate a digest.
+- **Signature Verification:** `ecrecover` is used to recover the address that signed the digest (owner). This verifies the authenticity of the permit.
+- **Token Approval:** If the signature is valid (recoveredAddress == owner), `_approve` is called to approve the spender to transfer the specified amount of tokens.
 
-### Detailed Usage
+**Impact:**
 
-1. **EIP-712 Domain Hashing:**
-   - The function begins by hashing the string `'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'` using `keccak256`. This string defines the structure of the domain separator for EIP-712.
+- This function enhances usability by allowing users to approve token transfers through signed messages, reducing the need for on-chain transactions and saving gas fees.
+- It improves security by verifying signatures, ensuring that only authorized owners can approve token transfers.
 
-2. **Encoding Domain Specifics:**
-   - Next, it uses `abi.encode` to encode the domain-specific parameters:
-     - `keccak256(bytes(name))`: Hashes the name of the domain.
-     - `keccak256(bytes('1'))`: Hashes the version string, which is set to '1'.
-     - `chainId`: Represents the ID of the blockchain network.
-     - `address(this)`: Refers to the address of the contract that will verify the signed messages.
-
-3. **Creating the DOMAIN_SEPARATOR:**
-   - The `abi.encode` function concatenates and encodes these hashed and raw values into a single byte array.
-   - Finally, `keccak256` is applied to hash this encoded byte array, resulting in the `DOMAIN_SEPARATOR`.
-
-### Impact
-
-- **Functionality:**
-  - `DOMAIN_SEPARATOR` plays a critical role in ensuring the integrity and security of off-chain signed data within the EIP-712 framework.
-  - It uniquely identifies the specific context or domain under which messages are signed, preventing unauthorized reuse of signatures across different domains.
-
-- **Security:**
-  - By leveraging `abi.encode` and `keccak256`, the function guarantees that the `DOMAIN_SEPARATOR` is collision-resistant and unique to its domain context.
-  - This mitigates the risk of replay attacks where a signature might be maliciously reused across unrelated contexts.
-
-### Conclusion
-
-The `DOMAIN_SEPARATOR` function exemplifies the use of `abi.encode` and `keccak256` to create a unique domain identifier according to the EIP-712 standard. This identifier ensures the secure verification of off-chain signed messages within a specific domain context, thereby enhancing the overall security and reliability of decentralized financial (DeFi) protocols 
+### Summary
+The `permit` function in the MapleToken smart contract plays a crucial role in enabling efficient and secure token transfers within the DeFi ecosystem. It leverages encoding, hashing, and signature verification techniques to provide meta-transaction capabilities, contributing significantly to the protocol's functionality and user experience.
